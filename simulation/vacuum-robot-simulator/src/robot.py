@@ -38,6 +38,20 @@ class Robot:
         if 0 <= x < len(self.grid[0]) and 0 <= y < len(self.grid) and self.grid[y][x] != 'O':
             self.position = (x, y)
 
+    def execute_command(self, command):
+        """
+        Executes a movement command.
+
+        Args:
+            command (str): The command to execute ('L' for left, 'R' for right, 'F' for forward).
+        """
+        if command == 'L':
+            self.turn_left()
+        elif command == 'R':
+            self.turn_right()
+        elif command == 'F':
+            self.move_forward()
+
     def simulate_sensors(self):
         """
         Simulates the robot's sensors to check for obstacles.

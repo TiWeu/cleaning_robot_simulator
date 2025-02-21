@@ -1,5 +1,6 @@
 import pygame
 from robot import Robot
+from robot_controller import RobotController
 
 # Initialize Pygame
 pygame.init()
@@ -133,6 +134,7 @@ def test_robot_sensors_in_gui():
     clock = pygame.time.Clock()
     
     robot = Robot(initial_position=(0, 0), initial_direction='N', grid=map_data)
+    controller = RobotController(robot)
     last_sensors = None
     
     while True:
@@ -183,7 +185,7 @@ def test_robot_sensors_in_gui():
         pygame.display.flip()
         
         if robot_position:
-            sensors = robot.simulate_sensors()
+            sensors = controller.get_sensor_data()
             if sensors != last_sensors:
                 print(f"Robot position: {robot.position}, direction: {robot.direction}")
                 print(f"Sensors: {sensors}")

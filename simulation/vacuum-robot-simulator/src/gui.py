@@ -1,4 +1,6 @@
 import pygame
+from robot import Robot
+from robot_controller import RobotController
 
 # Constants
 GRID_SIZE = 10
@@ -11,7 +13,7 @@ screen = pygame.display.set_mode((WIDTH, HEIGHT))
 clock = pygame.time.Clock()
 
 # Load robot image
-robot_image = pygame.image.load('./simulation/vacuum-robot-simulator/src/img/cleaning-robot.png')  # Ensure 'robot.png' is in the same directory or provide the correct path
+robot_image = pygame.image.load('./simulation/vacuum-robot-simulator/src/img/cleaning-robot.png')
 robot_image = pygame.transform.scale(robot_image, (CELL_SIZE, CELL_SIZE))
 
 # Global variables
@@ -80,6 +82,9 @@ def create_gui():
     # Initialize grid with 'U' for unvisited
     map_data = [['U' for _ in range(GRID_SIZE)] for _ in range(GRID_SIZE)]
     
+    robot = Robot(initial_position=(0, 0), initial_direction='N', grid=map_data)
+    controller = RobotController(robot)
+    
     while True:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -93,6 +98,7 @@ def create_gui():
                         if robot_position:
                             map_data[robot_position[1]][robot_position[0]] = 'U'  # Reset old robot position
                         robot_position = (grid_x, grid_y)
+                        robot.position = robot_position
                     map_data[grid_y][grid_x] = current_mode  # Set cell to current mode
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_u:
@@ -108,15 +114,19 @@ def create_gui():
                 elif event.key == pygame.K_LEFT or event.key == pygame.K_a:
                     if robot_position:
                         robot_direction = 'W'
+                        robot.direction = robot_direction
                 elif event.key == pygame.K_RIGHT or event.key == pygame.K_d:
                     if robot_position:
                         robot_direction = 'E'
+                        robot.direction = robot_direction
                 elif event.key == pygame.K_UP or event.key == pygame.K_w:
                     if robot_position:
                         robot_direction = 'N'
+                        robot.direction = robot_direction
                 elif event.key == pygame.K_DOWN or event.key == pygame.K_s:
                     if robot_position:
                         robot_direction = 'S'
+                        robot.direction = robot_direction
 
         draw_grid(map_data)
         draw_legend()
