@@ -70,7 +70,8 @@ def send_sensor_data(serial_comm, sensors):
         serial_comm (SerialCommunication): The serial communication instance.
         sensors (dict): The sensor data.
     """
-    formatted_data = format_sensor_data_as_bits(sensors)
+    # formatted_data = format_sensor_data_as_bits(sensors)
+    formatted_data = sensors
     serial_comm.send_data(formatted_data)
     print(f"Sent data: {formatted_data}")
 

@@ -79,4 +79,11 @@ class Robot:
             sensors['left'] = y >= len(self.grid) - 1 or (x > 0 and (self.grid[y + 1][x - 1] == 'O' or self.grid[y + 1][x - 1] == 'I'))
             sensors['right'] = y <= 0 or (x > 0 and (self.grid[y - 1][x - 1] == 'O' or self.grid[y - 1][x - 1] == 'I'))
 
-        return sensors
+        #return sensors
+        front = 1 if sensors['front'] else 0
+        left = 1 if sensors['left'] else 0
+        right = 1 if sensors['right'] else 0
+        collision = 0  # Placeholder for collision sensor
+        # Combine the bits into a single byte
+        data_byte = (front << 3) | (left << 2) | (right << 1) | collision
+        return bytes([data_byte])

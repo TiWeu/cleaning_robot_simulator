@@ -1,6 +1,8 @@
 import pygame
 from robot import Robot
 from robot_controller import RobotController
+from serial_communication import SerialCommunication, send_sensor_data, wait_for_data  # Import necessary functions
+import time
 
 # Initialize Pygame
 pygame.init()
@@ -26,6 +28,7 @@ current_mode = 'U'  # Start with 'Unvisited' mode
 robot_position = None  # Track the current robot position
 robot_direction = 'N'  # Track the current robot direction
 map_data = [['U' for _ in range(GRID_SIZE)] for _ in range(GRID_SIZE)]  # Initialize grid with 'U' for unvisited
+serial_initialized = False  # Flag to track if serial communication is initialized
 
 def draw_grid(map_data):
     """
@@ -80,67 +83,28 @@ def draw_legend():
         screen.blit(img, (40, y_offset))
         y_offset += 30
 
-def create_gui():
+def draw_start_button():
     """
-    Main function to create the GUI and handle events.
+    Draws the start button.
     """
-    global current_mode, robot_position, robot_direction, map_data, screen
-    screen = pygame.display.set_mode((WIDTH, HEIGHT))
-    clock = pygame.time.Clock()
-    
-    while True:
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                pygame.quit()
-                return
-            elif event.type == pygame.MOUSEBUTTONDOWN:
-                x, y = event.pos
-                grid_x, grid_y = x // CELL_SIZE, y // CELL_SIZE
-                if grid_y < GRID_SIZE:  # Ensure click is within grid area
-                    if current_mode == 'R':
-                        if robot_position:
-                            map_data[robot_position[1]][robot_position[0]] = 'U'  # Reset old robot position
-                        robot_position = (grid_x, grid_y)
-                    map_data[grid_y][grid_x] = current_mode  # Set cell to current mode
-            elif event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_u:
-                    current_mode = 'U'
-                elif event.key == pygame.K_v:
-                    current_mode = 'V'
-                elif event.key == pygame.K_o:
-                    current_mode = 'O'
-                elif event.key == pygame.K_i:
-                    current_mode = 'I'
-                elif event.key == pygame.K_r:
-                    current_mode = 'R'
-                elif event.key == pygame.K_LEFT or event.key == pygame.K_a:
-                    if robot_position:
-                        robot_direction = 'W'
-                elif event.key == pygame.K_RIGHT or event.key == pygame.K_d:
-                    if robot_position:
-                        robot_direction = 'E'
-                elif event.key == pygame.K_UP or event.key == pygame.K_w:
-                    if robot_position:
-                        robot_direction = 'N'
-                elif event.key == pygame.K_DOWN or event.key == pygame.K_s:
-                    if robot_position:
-                        robot_direction = 'S'
-
-        draw_grid(map_data)
-        draw_legend()
-        pygame.display.flip()
-        clock.tick(10)
+    font = pygame.font.SysFont(None, 36)
+    button_text = font.render("Start", True, (255, 255, 255))
+    button_rect = pygame.Rect(WIDTH - 110, HEIGHT - 50, 100, 40)
+    pygame.draw.rect(screen, (0, 128, 0), button_rect)
+    screen.blit(button_text, (button_rect.x + 20, button_rect.y + 5))
+    return button_rect
 
 def test_robot_sensors_in_gui():
     """
     Test function to run the GUI and print sensor data based on the robot's position and obstacles.
     """
-    global robot_position, robot_direction, map_data, screen, current_mode
+    global robot_position, robot_direction, map_data, screen, current_mode, serial_initialized
     clock = pygame.time.Clock()
     
     robot = Robot(initial_position=(0, 0), initial_direction='N', grid=map_data)
     controller = RobotController(robot)
     last_sensors = None
+    serial_comm = None  # Initialize serial communication variable
     
     while True:
         for event in pygame.event.get():
@@ -157,6 +121,15 @@ def test_robot_sensors_in_gui():
                         robot_position = (grid_x, grid_y)
                         robot.position = robot_position
                     map_data[grid_y][grid_x] = current_mode  # Set cell to current mode
+                else:
+                    # Check if the start button is pressed
+                    button_rect = draw_start_button()
+                    if button_rect.collidepoint(event.pos) and not serial_initialized:
+                        # Initialize serial communication
+                        serial_comm = SerialCommunication(port='COM3', baudrate=9600)
+                        time.sleep(2)  # Wait for the serial connection to be established
+                        serial_initialized = True
+                        print("Serial communication initialized.")
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_u:
                     current_mode = 'U'
@@ -187,6 +160,7 @@ def test_robot_sensors_in_gui():
 
         draw_grid(map_data)
         draw_legend()
+        button_rect = draw_start_button()  # Draw the start button
         pygame.display.flip()
         
         if robot_position:
@@ -195,7 +169,18 @@ def test_robot_sensors_in_gui():
                 print(f"Robot position: {robot.position}, direction: {robot.direction}")
                 print(f"Sensors: {sensors}")
                 last_sensors = sensors
-        
+
+                # Send sensor data
+                if serial_comm:
+                    send_sensor_data(serial_comm, sensors)
+
+                    # Wait for motor movement command
+                    received_data = wait_for_data(serial_comm)
+                    if received_data:
+                        command = received_data.decode('utf-8').strip()
+                        print(f"Received command: {received_data}")
+                        robot.execute_command(command)
+
         clock.tick(10)
 
 if __name__ == "__main__":
