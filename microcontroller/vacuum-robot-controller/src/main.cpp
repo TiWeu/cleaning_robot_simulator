@@ -1,9 +1,14 @@
 #include <avr/io.h>
+#include <avr/interrupt.h>
 #include <util/delay.h>
 #include <stdlib.h>
 #include <stdio.h>
 
 #define BUFFER_SIZE 100
+#define FORWARD 0x01
+#define TURN_LEFT 0x02
+#define TURN_RIGHT 0x03
+#define STOP 0x04
 
 // Define a struct to hold the sensor values
 typedef struct {
@@ -12,6 +17,12 @@ typedef struct {
     int right;
     int collision;
 } SensorValues;
+
+volatile char buffer[BUFFER_SIZE]; // Buffer to store received string
+volatile int index = 0;
+volatile int data_ready = 0; // Flag to indicate data is ready to be processed
+
+volatile SensorValues sensor_values = {0, 0, 0, 0}; // Initialize sensor values
 
 // Function to initialize UART
 void uart_init(unsigned int baud) {
@@ -41,37 +52,89 @@ void uart_transmit_string(const char* str) {
     }
 }
 
-// Function to parse the received string and update the sensor values
-void parse_sensor_values(const char* str, SensorValues* values) {
-    sscanf(str, "F:%d,L:%d,R:%d,C:%d", &values->front, &values->left, &values->right, &values->collision);
+// Function to parse the received byte and update the sensor values
+void parse_sensor_values_byte(unsigned char byte, SensorValues* values) {
+    if (byte & 0x01) { // Check if the last bit is 1 (valid data)
+        values->front = (byte >> 4) & 0x01;
+        values->left = (byte >> 3) & 0x01;
+        values->right = (byte >> 2) & 0x01;
+        values->collision = (byte >> 1) & 0x01;
+    }
+}
+
+// Function to decide the robot's movement based on sensor values
+uint8_t decide_movement(const SensorValues* values) {
+    if (values->collision) {
+        // Collision detected, stop the robot
+        return STOP;
+    }
+    if (values->front) {
+        // Front is blocked, turn randomly left or right
+        if (rand() % 2 == 0) {
+            return TURN_LEFT;
+        } else {
+            return TURN_RIGHT;
+        }
+    } else {
+        // Front is free, move forward
+        return FORWARD;
+    }
+}
+
+// Timer interrupt service routine
+ISR(TIMER1_COMPA_vect) {
+    static enum {RECEIVE, PROCESS} state = RECEIVE;
+    unsigned char received_byte;
+
+    switch (state) {
+        case RECEIVE:
+            received_byte = uart_receive();
+            buffer[index++] = received_byte;
+            if (index >= 1) { // We only need one byte
+                data_ready = 1; // Set flag to indicate data is ready to be processed
+                index = 0; // Reset index for next byte
+                state = PROCESS; // Move to the next state
+            }
+            break;
+
+        case PROCESS:
+            if (data_ready) {
+                // Step 2: Parse the received byte and update the sensor values
+                parse_sensor_values_byte(buffer[0], &sensor_values);
+
+                // Step 3: Decide the movement and send the instruction
+                uint8_t movement = decide_movement(&sensor_values);
+
+                // Create a buffer to hold the movement and sensor values
+                char output_buffer[BUFFER_SIZE];
+                snprintf(output_buffer, BUFFER_SIZE, "%d", movement);
+
+                // Send the combined movement and sensor values
+                uart_transmit_string(output_buffer);
+
+                // Reset data_ready flag
+                data_ready = 0;
+                state = RECEIVE; // Move back to the receive state
+            }
+            break;
+    }
+}
+
+// Function to initialize Timer1
+void timer1_init(void) {
+    TCCR1B |= (1 << WGM12); // Configure timer 1 for CTC mode
+    TIMSK1 |= (1 << OCIE1A); // Enable CTC interrupt
+    OCR1A = 15624; // Set CTC compare value for 1Hz at 16MHz AVR clock, with a prescaler of 1024
+    TCCR1B |= (1 << CS12) | (1 << CS10); // Start timer at Fcpu/1024
 }
 
 int main(void) {
     uart_init(9600); // Initialize UART with 9600 baud rate
-    char buffer[BUFFER_SIZE]; // Buffer to store received string
-    unsigned char received_char;
-    int index = 0;
-    SensorValues sensor_values = {0, 0, 0, 0}; // Initialize sensor values
+    timer1_init(); // Initialize Timer1
+    sei(); // Enable global interrupts
 
     while (1) {
-        // Step 1: Receive characters until newline is received or buffer is full
-        while (1) {
-            received_char = uart_receive();
-            if (received_char == '\n' || index >= BUFFER_SIZE - 1) {
-                buffer[index] = '\0'; // Null-terminate the string
-                break;
-            }
-            buffer[index++] = received_char;
-        }
-
-        // Step 2: Parse the received string and update the sensor values
-        parse_sensor_values(buffer, &sensor_values);
-
-        // Step 3: Send acknowledgment
-        uart_transmit_string("ACK\n");
-
-        // Step 4: Reset index for next string
-        index = 0;
+        // Main loop can be empty as everything is handled in the ISR
     }
 
     return 0;

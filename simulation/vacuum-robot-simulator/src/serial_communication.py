@@ -1,5 +1,4 @@
 import serial
-import json
 import time
 
 class SerialCommunication:
@@ -21,10 +20,10 @@ class SerialCommunication:
         Sends data over the serial connection.
 
         Args:
-            data (str): The data to send.
+            data (bytes): The data to send.
         """
         if self.ser.is_open:
-            self.ser.write(data.encode())
+            self.ser.write(data)
         else:
             print("Serial port is not open. Cannot send data.")
     
@@ -33,10 +32,10 @@ class SerialCommunication:
         Receives data from the serial connection.
 
         Returns:
-            str: The received data.
+            bytes: The received data.
         """
         if self.ser.is_open and self.ser.in_waiting:
-            return self.ser.readline().decode().strip()
+            return self.ser.read(self.ser.in_waiting)
         return None
     
     def close(self):
@@ -45,17 +44,23 @@ class SerialCommunication:
         """
         self.ser.close()
 
-def format_sensor_data(sensors):
+def format_sensor_data_as_bits(sensors):
     """
-    Formats the sensor data into a compact string format.
+    Formats the sensor data into a byte format.
 
     Args:
         sensors (dict): The sensor data.
 
     Returns:
-        str: The formatted sensor data.
+        bytes: The formatted sensor data as bytes.
     """
-    return f"F:{int(sensors['front'])},L:{int(sensors['left'])},R:{int(sensors['right'])},C:{int(sensors['collision'])}\n"
+    front = 1 if sensors['front'] else 0
+    left = 1 if sensors['left'] else 0
+    right = 1 if sensors['right'] else 0
+    collision = 1 if sensors['collision'] else 0
+    # Combine the bits into a single byte
+    data_byte = (front << 4) | (left << 3) | (right << 2) | (collision << 1) | 1
+    return bytes([data_byte])
 
 def send_sensor_data(serial_comm, sensors):
     """
@@ -65,7 +70,7 @@ def send_sensor_data(serial_comm, sensors):
         serial_comm (SerialCommunication): The serial communication instance.
         sensors (dict): The sensor data.
     """
-    formatted_data = format_sensor_data(sensors)
+    formatted_data = format_sensor_data_as_bits(sensors)
     serial_comm.send_data(formatted_data)
     print(f"Sent data: {formatted_data}")
 
@@ -77,7 +82,7 @@ def wait_for_data(serial_comm):
         serial_comm (SerialCommunication): The serial communication instance.
 
     Returns:
-        str: The received data.
+        bytes: The received data.
     """
     print("Waiting for data...")
     counter = 0
@@ -86,7 +91,7 @@ def wait_for_data(serial_comm):
         if received_data:
             print(f"Received data: {received_data}")
             return received_data
-        time.sleep(0.1)  # Sleep for a short period to avoid busy-waiting
+        time.sleep(0.8)  # Sleep for a short period to avoid busy-waiting
         counter += 1
         if counter >= 10:
             print("No data received.")
@@ -102,6 +107,7 @@ def main():
 
     # Initialize serial communication
     serial_comm = SerialCommunication(port='COM3', baudrate=9600)
+    time.sleep(2)  # Wait for the serial connection to be established
 
     try:
         while True:
@@ -121,11 +127,16 @@ def main():
             # Wait for data to be received
             received_data = wait_for_data(serial_comm)
 
-            # Simulate sensor data changes
-            sensors["front"] = not sensors["front"]
-            sensors["left"] = not sensors["left"]
-            sensors["right"] = not sensors["right"]
-            sensors["collision"] = not sensors["collision"]
+            # If no data was received, send the same sensor data again
+            if received_data is None:
+                print("Resending the same sensor data...")
+                send_sensor_data(serial_comm, sensors)
+            else:
+                # Simulate sensor data changes
+                sensors["front"] = not sensors["front"]
+                sensors["left"] = not sensors["left"]
+                sensors["right"] = not sensors["right"]
+                sensors["collision"] = not sensors["collision"]
 
             print("Loop iteration complete.")
     except Exception as e:
