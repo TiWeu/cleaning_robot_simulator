@@ -10,16 +10,22 @@ GRID_SIZE = 10
 CELL_SIZE = 50
 WIDTH, HEIGHT = GRID_SIZE * CELL_SIZE, GRID_SIZE * CELL_SIZE + 160  # Extra space for the legend
 
-# Load robot image
-robot_image = pygame.image.load('./simulation/vacuum-robot-simulator/src/img/cleaning-robot.png')
+# Initialize screen
+screen = pygame.display.set_mode((WIDTH, HEIGHT))
+
+# Load robot image with transparency
+robot_image = pygame.image.load('./simulation/vacuum-robot-simulator/src/img/cleaning-robot.png').convert_alpha()
 robot_image = pygame.transform.scale(robot_image, (CELL_SIZE, CELL_SIZE))
+
+# Set the background color of the robot image to (200, 200, 200)
+background_color = (200, 200, 200)
+robot_image.fill(background_color, special_flags=pygame.BLEND_RGBA_MIN)
 
 # Global variables
 current_mode = 'U'  # Start with 'Unvisited' mode
 robot_position = None  # Track the current robot position
 robot_direction = 'N'  # Track the current robot direction
 map_data = [['U' for _ in range(GRID_SIZE)] for _ in range(GRID_SIZE)]  # Initialize grid with 'U' for unvisited
-screen = pygame.display.set_mode((WIDTH, HEIGHT))  # Initialize screen
 
 def draw_grid(map_data):
     """
@@ -130,7 +136,6 @@ def test_robot_sensors_in_gui():
     Test function to run the GUI and print sensor data based on the robot's position and obstacles.
     """
     global robot_position, robot_direction, map_data, screen, current_mode
-    screen = pygame.display.set_mode((WIDTH, HEIGHT))
     clock = pygame.time.Clock()
     
     robot = Robot(initial_position=(0, 0), initial_direction='N', grid=map_data)
