@@ -29,6 +29,7 @@ robot_position = None  # Track the current robot position
 robot_direction = 'N'  # Track the current robot direction
 map_data = [['U' for _ in range(GRID_SIZE)] for _ in range(GRID_SIZE)]  # Initialize grid with 'U' for unvisited
 serial_initialized = False  # Flag to track if serial communication is initialized
+start_time = None  # Variable to track the start time
 
 def draw_grid(map_data):
     """
@@ -94,11 +95,24 @@ def draw_start_button():
     screen.blit(button_text, (button_rect.x + 20, button_rect.y + 5))
     return button_rect
 
+def draw_elapsed_time(start_time):
+    """
+    Draws the elapsed time since the start button was pressed.
+
+    Args:
+        start_time (float): The start time in seconds.
+    """
+    if start_time is not None:
+        elapsed_time = time.time() - start_time
+        font = pygame.font.SysFont(None, 36)
+        time_text = font.render(f"Time: {int(elapsed_time)}s", True, (0, 0, 0))
+        screen.blit(time_text, (10, HEIGHT - 50))
+
 def test_robot_sensors_in_gui():
     """
     Test function to run the GUI and print sensor data based on the robot's position and obstacles.
     """
-    global robot_position, robot_direction, map_data, screen, current_mode, serial_initialized
+    global robot_position, robot_direction, map_data, screen, current_mode, serial_initialized, start_time
     clock = pygame.time.Clock()
     
     robot = Robot(initial_position=(0, 0), initial_direction='N', grid=map_data)
@@ -128,6 +142,7 @@ def test_robot_sensors_in_gui():
                         serial_comm = SerialCommunication(port='COM3', baudrate=9600)
                         time.sleep(2)  # Wait for the serial connection to be established
                         serial_initialized = True
+                        start_time = time.time()  # Record the start time
                         print("Serial communication initialized.")
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_u:
@@ -160,6 +175,7 @@ def test_robot_sensors_in_gui():
         draw_grid(map_data)
         draw_legend()
         button_rect = draw_start_button()  # Draw the start button
+        draw_elapsed_time(start_time)  # Draw the elapsed time
         pygame.display.flip()
         
         if robot_position:
@@ -193,6 +209,7 @@ def test_robot_sensors_in_gui():
                     # Redraw the grid to update the robot's position
                     draw_grid(map_data)
                     draw_legend()
+                    draw_elapsed_time(start_time)  # Draw the elapsed time
                     pygame.display.flip()
 
         clock.tick(10)

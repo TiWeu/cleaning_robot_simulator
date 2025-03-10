@@ -68,8 +68,8 @@ class Robot:
             sensors['right'] = x >= len(self.grid[0]) - 1 or (y > 0 and (self.grid[y - 1][x + 1] == 'O' or self.grid[y - 1][x + 1] == 'I'))
         elif self.direction == 'E':
             sensors['front'] = x >= len(self.grid[0]) - 1 or self.grid[y][x + 1] == 'O' or self.grid[y][x + 1] == 'I'
-            sensors['left'] = y >= len(self.grid) - 1 or (x < len(self.grid[0]) - 1 and (self.grid[y - 1][x + 1] == 'O' or self.grid[y - 1][x + 1] == 'I'))
-            sensors['right'] = y <= 0 or (x < len(self.grid[0]) - 1 and (self.grid[y + 1][x + 1] == 'O' or self.grid[y + 1][x + 1] == 'I'))
+            sensors['left'] = y >= len(self.grid) - 1 or (x < len(self.grid[0]) - 1 and (self.grid[y + 1][x + 1] == 'O' or self.grid[y + 1][x + 1] == 'I'))
+            sensors['right'] = y <= 0 or (x < len(self.grid[0]) - 1 and (self.grid[y - 1][x + 1] == 'O' or self.grid[y - 1][x + 1] == 'I'))
         elif self.direction == 'S':
             sensors['front'] = y >= len(self.grid) - 1 or self.grid[y + 1][x] == 'O' or self.grid[y + 1][x] == 'I'
             sensors['left'] = x >= len(self.grid[0]) - 1 or (y < len(self.grid) - 1 and (self.grid[y + 1][x + 1] == 'O' or self.grid[y + 1][x + 1] == 'I'))
