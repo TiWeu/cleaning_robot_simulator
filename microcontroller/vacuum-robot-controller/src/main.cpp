@@ -54,12 +54,10 @@ void uart_transmit_string(const char* str) {
 
 // Function to parse the received byte and update the sensor values
 void parse_sensor_values_byte(unsigned char byte, SensorValues* values) {
-    if (byte & 0x01) { // Check if the last bit is 1 (valid data)
-        values->front = (byte >> 4) & 0x01;
-        values->left = (byte >> 3) & 0x01;
-        values->right = (byte >> 2) & 0x01;
-        values->collision = (byte >> 1) & 0x01;
-    }
+    values->front = (byte >> 3) & 0x01;
+    values->left = (byte >> 2) & 0x01;
+    values->right = (byte >> 1) & 0x01;
+    values->collision = byte & 0x01;
 }
 
 // Function to decide the robot's movement based on sensor values
@@ -107,7 +105,7 @@ ISR(TIMER1_COMPA_vect) {
 
                 // Create a buffer to hold the movement and sensor values
                 char output_buffer[BUFFER_SIZE];
-                snprintf(output_buffer, BUFFER_SIZE, "%d", movement);
+                snprintf(output_buffer, BUFFER_SIZE, "%d 0x%02X F:%d,L:%d,R:%d,C:%d\n", movement, buffer[0], sensor_values.front, sensor_values.left, sensor_values.right, sensor_values.collision);
 
                 // Send the combined movement and sensor values
                 uart_transmit_string(output_buffer);
