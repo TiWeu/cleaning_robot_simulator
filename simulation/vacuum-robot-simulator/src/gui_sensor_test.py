@@ -103,7 +103,6 @@ def test_robot_sensors_in_gui():
     
     robot = Robot(initial_position=(0, 0), initial_direction='N', grid=map_data)
     controller = RobotController(robot)
-    last_sensors = None
     serial_comm = None  # Initialize serial communication variable
     
     while True:
@@ -165,21 +164,36 @@ def test_robot_sensors_in_gui():
         
         if robot_position:
             sensors = controller.get_sensor_data()
-            if sensors != last_sensors:
-                print(f"Robot position: {robot.position}, direction: {robot.direction}")
-                print(f"Sensors: {sensors}")
-                last_sensors = sensors
+            print(f"Robot position: {robot.position}, direction: {robot.direction}")
+            print(f"Sensors: {sensors}")
 
-                # Send sensor data
-                if serial_comm:
-                    send_sensor_data(serial_comm, sensors)
+            # Send sensor data
+            if serial_comm:
+                send_sensor_data(serial_comm, sensors)
 
-                    # Wait for motor movement command
-                    received_data = wait_for_data(serial_comm)
-                    if received_data:
-                        command = received_data.decode('utf-8').strip()
-                        print(f"Received command: {received_data}")
-                        robot.execute_command(command)
+                # Wait for motor movement command
+                received_data = wait_for_data(serial_comm)
+                if received_data:
+                    command = received_data.decode('utf-8').strip()
+                    print(f"Received command: {command}")
+                    if command == '1':
+                        # Update map_data to reflect the robot's movement
+                        map_data[robot_position[1]][robot_position[0]] = 'V'  # Mark the old position as visited
+                        robot.move_forward()
+                        robot_position = robot.position
+                        map_data[robot_position[1]][robot_position[0]] = 'R'  # Mark the new position as robot
+                    elif command == '2':
+                        robot.turn_left()
+                    elif command == '3':
+                        robot.turn_right()
+
+                    # Update robot direction
+                    robot_direction = robot.direction
+
+                    # Redraw the grid to update the robot's position
+                    draw_grid(map_data)
+                    draw_legend()
+                    pygame.display.flip()
 
         clock.tick(10)
 

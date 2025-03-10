@@ -105,7 +105,7 @@ ISR(TIMER1_COMPA_vect) {
 
                 // Create a buffer to hold the movement and sensor values
                 char output_buffer[BUFFER_SIZE];
-                snprintf(output_buffer, BUFFER_SIZE, "%d 0x%02X F:%d,L:%d,R:%d,C:%d\n", movement, buffer[0], sensor_values.front, sensor_values.left, sensor_values.right, sensor_values.collision);
+                snprintf(output_buffer, BUFFER_SIZE, "%d", movement);
 
                 // Send the combined movement and sensor values
                 uart_transmit_string(output_buffer);
