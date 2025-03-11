@@ -1,7 +1,9 @@
 import pygame
 from robot import Robot
 from robot_controller import RobotController
-from serial_communication import SerialCommunication, send_sensor_data, wait_for_data  # Import necessary functions
+from serial_utils import SerialCommunication, send_sensor_data, wait_for_data  # Import necessary functions
+from gui_utils import draw_grid, draw_legend, draw_start_button, draw_elapsed_time
+from event_handler import handle_events
 import time
 
 # Initialize Pygame
@@ -31,83 +33,6 @@ map_data = [['U' for _ in range(GRID_SIZE)] for _ in range(GRID_SIZE)]  # Initia
 serial_initialized = False  # Flag to track if serial communication is initialized
 start_time = None  # Variable to track the start time
 
-def draw_grid(map_data):
-    """
-    Draws the grid based on the map data.
-
-    Args:
-        map_data (list of list of str): The grid data where each cell can be 'U', 'V', 'O', 'I', or 'R'.
-    """
-    screen.fill((255, 255, 255))
-    for y in range(GRID_SIZE):
-        for x in range(GRID_SIZE):
-            if map_data[y][x] == 'U':
-                color = (200, 200, 200)  # Unvisited
-                pygame.draw.rect(screen, color, (x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE))
-            elif map_data[y][x] == 'V':
-                color = (0, 255, 0)  # Visited
-                pygame.draw.rect(screen, color, (x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE))
-            elif map_data[y][x] == 'O':
-                color = (255, 0, 0)  # Obstacle Unidentified
-                pygame.draw.rect(screen, color, (x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE))
-            elif map_data[y][x] == 'I':
-                color = (0, 0, 255)  # Obstacle Identified
-                pygame.draw.rect(screen, color, (x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE))
-            elif map_data[y][x] == 'R':
-                # Draw the robot image with the correct rotation
-                if robot_direction == 'N':
-                    rotated_image = pygame.transform.rotate(robot_image, 0)
-                elif robot_direction == 'E':
-                    rotated_image = pygame.transform.rotate(robot_image, -90)
-                elif robot_direction == 'S':
-                    rotated_image = pygame.transform.rotate(robot_image, 180)
-                elif robot_direction == 'W':
-                    rotated_image = pygame.transform.rotate(robot_image, 90)
-                screen.blit(rotated_image, (x * CELL_SIZE, y * CELL_SIZE))
-
-def draw_legend():
-    """
-    Draws the legend explaining the colors and their meanings.
-    """
-    font = pygame.font.SysFont(None, 24)
-    legend_items = [
-        ("Unvisited (U)", (200, 200, 200)),
-        ("Visited (V)", (0, 255, 0)),
-        ("Obstacle Unidentified (O)", (255, 0, 0)),
-        ("Obstacle Identified (I)", (0, 0, 255)),
-        ("Robot (R)", (255, 255, 0))
-    ]
-    y_offset = GRID_SIZE * CELL_SIZE + 10
-    for text, color in legend_items:
-        pygame.draw.rect(screen, color, (10, y_offset, 20, 20))
-        img = font.render(text, True, (0, 0, 0))
-        screen.blit(img, (40, y_offset))
-        y_offset += 30
-
-def draw_start_button():
-    """
-    Draws the start button.
-    """
-    font = pygame.font.SysFont(None, 36)
-    button_text = font.render("Start", True, (255, 255, 255))
-    button_rect = pygame.Rect(WIDTH - 110, HEIGHT - 50, 100, 40)
-    pygame.draw.rect(screen, (0, 128, 0), button_rect)
-    screen.blit(button_text, (button_rect.x + 20, button_rect.y + 5))
-    return button_rect
-
-def draw_elapsed_time(start_time):
-    """
-    Draws the elapsed time since the start button was pressed.
-
-    Args:
-        start_time (float): The start time in seconds.
-    """
-    if start_time is not None:
-        elapsed_time = time.time() - start_time
-        font = pygame.font.SysFont(None, 36)
-        time_text = font.render(f"Time: {int(elapsed_time)}s", True, (0, 0, 0))
-        screen.blit(time_text, (10, HEIGHT - 50))
-
 def test_robot_sensors_in_gui():
     """
     Test function to run the GUI and print sensor data based on the robot's position and obstacles.
@@ -120,62 +45,19 @@ def test_robot_sensors_in_gui():
     serial_comm = None  # Initialize serial communication variable
     
     while True:
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                pygame.quit()
-                return
-            elif event.type == pygame.MOUSEBUTTONDOWN:
-                x, y = event.pos
-                grid_x, grid_y = x // CELL_SIZE, y // CELL_SIZE
-                if grid_y < GRID_SIZE:  # Ensure click is within grid area
-                    if current_mode == 'R':
-                        if robot_position:
-                            map_data[robot_position[1]][robot_position[0]] = 'U'  # Reset old robot position
-                        robot_position = (grid_x, grid_y)
-                        robot.position = robot_position
-                    map_data[grid_y][grid_x] = current_mode  # Set cell to current mode
-                else:
-                    # Check if the start button is pressed
-                    button_rect = draw_start_button()
-                    if button_rect.collidepoint(event.pos) and not serial_initialized:
-                        # Initialize serial communication
-                        serial_comm = SerialCommunication(port='COM3', baudrate=9600)
-                        time.sleep(2)  # Wait for the serial connection to be established
-                        serial_initialized = True
-                        start_time = time.time()  # Record the start time
-                        print("Serial communication initialized.")
-            elif event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_u:
-                    current_mode = 'U'
-                elif event.key == pygame.K_v:
-                    current_mode = 'V'
-                elif event.key == pygame.K_o:
-                    current_mode = 'O'
-                elif event.key == pygame.K_i:
-                    current_mode = 'I'
-                elif event.key == pygame.K_r:
-                    current_mode = 'R'
-                elif event.key == pygame.K_LEFT or event.key == pygame.K_a:
-                    if robot_position:
-                        robot_direction = 'W'
-                        robot.direction = robot_direction
-                elif event.key == pygame.K_RIGHT or event.key == pygame.K_d:
-                    if robot_position:
-                        robot_direction = 'E'
-                        robot.direction = robot_direction
-                elif event.key == pygame.K_UP or event.key == pygame.K_w:
-                    if robot_position:
-                        robot_direction = 'N'
-                        robot.direction = robot_direction
-                elif event.key == pygame.K_DOWN or event.key == pygame.K_s:
-                    if robot_position:
-                        robot_direction = 'S'
-                        robot.direction = robot_direction
+        current_mode, robot_position, robot_direction, serial_comm, start_time = handle_events(current_mode, robot_position, robot_direction, map_data, CELL_SIZE, GRID_SIZE, serial_comm, start_time, WIDTH, HEIGHT)
+        if current_mode is None:
+            return
 
-        draw_grid(map_data)
-        draw_legend()
-        button_rect = draw_start_button()  # Draw the start button
-        draw_elapsed_time(start_time)  # Draw the elapsed time
+        # Update robot position in the robot object
+        if robot_position:
+            robot.position = robot_position
+            robot.direction = robot_direction
+
+        draw_grid(screen, map_data, robot_image, robot_direction, CELL_SIZE, GRID_SIZE)
+        draw_legend(screen, GRID_SIZE, CELL_SIZE)
+        button_rect = draw_start_button(screen, WIDTH, HEIGHT)  # Draw the start button
+        draw_elapsed_time(screen, start_time, HEIGHT)  # Draw the elapsed time
         pygame.display.flip()
         
         if robot_position:
@@ -207,12 +89,12 @@ def test_robot_sensors_in_gui():
                     robot_direction = robot.direction
 
                     # Redraw the grid to update the robot's position
-                    draw_grid(map_data)
-                    draw_legend()
-                    draw_elapsed_time(start_time)  # Draw the elapsed time
+                    draw_grid(screen, map_data, robot_image, robot_direction, CELL_SIZE, GRID_SIZE)
+                    draw_legend(screen, GRID_SIZE, CELL_SIZE)
+                    draw_elapsed_time(screen, start_time, HEIGHT)  # Draw the elapsed time
                     pygame.display.flip()
 
-        clock.tick(10)
+        clock.tick(30)
 
 if __name__ == "__main__":
     test_robot_sensors_in_gui()

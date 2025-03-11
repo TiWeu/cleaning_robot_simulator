@@ -122,8 +122,8 @@ ISR(TIMER1_COMPA_vect) {
 void timer1_init(void) {
     TCCR1B |= (1 << WGM12); // Configure timer 1 for CTC mode
     TIMSK1 |= (1 << OCIE1A); // Enable CTC interrupt
-    OCR1A = 15624; // Set CTC compare value for 1Hz at 16MHz AVR clock, with a prescaler of 1024
-    TCCR1B |= (1 << CS12) | (1 << CS10); // Start timer at Fcpu/1024
+    OCR1A = 624; // Set CTC compare value for 40ms at 16MHz AVR clock, with a prescaler of 256
+    TCCR1B |= (1 << CS12); // Start timer at Fcpu/256
 }
 
 int main(void) {
