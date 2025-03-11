@@ -1,5 +1,6 @@
 import serial
 import time
+import asyncio
 
 class SerialCommunication:
     def __init__(self, port, baudrate, timeout=1):
@@ -27,16 +28,17 @@ class SerialCommunication:
         else:
             print("Serial port is not open. Cannot send data.")
     
-    def receive_data(self):
+    async def receive_data(self):
         """
-        Receives data from the serial connection.
+        Asynchronously receives data from the serial connection.
 
         Returns:
             bytes: The received data.
         """
-        if self.ser.is_open and self.ser.in_waiting:
-            return self.ser.read(self.ser.in_waiting)
-        return None
+        while True:
+            if self.ser.is_open and self.ser.in_waiting:
+                return self.ser.read(self.ser.in_waiting)
+            await asyncio.sleep(0.1)
     
     def close(self):
         """
@@ -74,9 +76,9 @@ def send_sensor_data(serial_comm, sensors):
     serial_comm.send_data(formatted_data)
     print(f"Sent data: {formatted_data}")
 
-def wait_for_data(serial_comm):
+async def wait_for_data(serial_comm):
     """
-    Waits for data to be received over the serial connection.
+    Asynchronously waits for data to be received over the serial connection.
 
     Args:
         serial_comm (SerialCommunication): The serial communication instance.
@@ -85,14 +87,6 @@ def wait_for_data(serial_comm):
         bytes: The received data.
     """
     print("Waiting for data...")
-    counter = 0
-    while True:
-        received_data = serial_comm.receive_data()
-        if received_data:
-            print(f"Received data: {received_data}")
-            return received_data
-        time.sleep(0.8)  # Sleep for a short period to avoid busy-waiting
-        counter += 1
-        if counter >= 10:
-            print("No data received.")
-            return None
+    received_data = await serial_comm.receive_data()
+    print(f"Received data: {received_data}")
+    return received_data
