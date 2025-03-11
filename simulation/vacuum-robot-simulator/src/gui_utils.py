@@ -91,6 +91,6 @@ def draw_elapsed_time(screen, start_time, HEIGHT):
     """
     if start_time is not None:
         elapsed_time = time.time() - start_time
-        font = pygame.font.SysFont(None, 36)
+        font = pygame.font.SysFont(None, 24)
         time_text = font.render(f"Time: {int(elapsed_time)}s", True, (0, 0, 0))
-        screen.blit(time_text, (10, HEIGHT - 50))
+        screen.blit(time_text, (390, HEIGHT - 80))
